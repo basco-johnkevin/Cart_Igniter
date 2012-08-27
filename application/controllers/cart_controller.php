@@ -1,4 +1,5 @@
 <?php
+
 class Cart_controller extends CI_Controller {
 	
 	/**
@@ -9,52 +10,40 @@ class Cart_controller extends CI_Controller {
 	 */
 	function add()
 	{
-		$this->load->model('cart_m');
-
-		// query the product
 		$product_id = $this->input->get('product_id');
 
 		// get the product details and validate if product really exists in the database
-		$product_query = $this->cart_m->get_product($product_id);
+		$product = Product::get_products($product_id);
+
+		// count the result
+		$result_count = count($product);
 
 		// kill script if the product doesn't exist in the database
-		if ($product_query->num_rows() !== 1)
+		if ($result_count !== 1)
 		{
 			die('Product do not exist in the database! Are you CHEATING?!!');
 		}
 
-		// print_r($product_query->result());
+		$price = $product->price; // product price
+		$product_name = $product->name; // product name
 
-		// get the product price
-		foreach ($product_query->result() as $product) 
-		{
-			$price = $product->price;
-			$product_name = $product->name;
-		}
-
-		// query the option_keys associated with the product if there is any
-		$option_keys_query = $this->cart_m->get_option_keys($product_id);
-
-		// print_r($option_keys_query->result());
-
-		if ($option_keys_query->num_rows() > 0)
+		if (count($product->option_keys) > 0)
 		{
 			$option_keys_array = array();
 
-			foreach ($option_keys_query->result() as $option_key) 
+			foreach ($product->option_keys as $option_key) 
 			{
-				// store the option_key object to the option_keys_array
 				$option_keys_array[ $option_key->id ] = $option_key;
 			}
 		}
 
-		// print_r($option_keys_array);
-
 		$options_array = array(); // array that will hold the options chosen by the user
+
+		//print_r($option_keys_array);
 
 		foreach ($option_keys_array as $option_key) 
 		{
-			$options_array[ $option_key->id ][ $option_key->option_key ] = $this->input->get($option_key->option_key);
+			$options_array[ $option_key->id ][ $option_key->name ] = $this->input->get($option_key->name);
 		}
 
 		// print_r($options_array);
@@ -70,23 +59,18 @@ class Cart_controller extends CI_Controller {
 				}
 
 				// validate if the option value for the option key really exist in the database
-				$option_values_query = $this->cart_m->get_option_value($option_key_id, $option_value);
+				$option_value_query = Option_value::get_option_value($option_key_id, $option_value);
+
 				$temp_option_value = $option_value; // current option value to be used in the error message if the option value is not found in the database
 			}
 
-			// print_r($option_values_query->result());
-
 			// kill the script and show an error message if the option value chosen by the user for the option key doesn't exist
-			if ($option_values_query->num_rows() === 0)
+			if (count($option_value_query) === 0)
 			{
 				die('Cheating?!! ' . $temp_option_value . ' is not a valid option!');
 			}
 
-			// add the price of each option value that has been chosen by the user to the $price variable
-			foreach ($option_values_query->result() as $option_value_object) 
-			{
-				$price += $option_value_object->price;
-			}
+			$price += $option_value_query->price; // add the price of each option value that has been chosen by the user to the $price variable
 		}
 
 		// if we reach this point, it means that all validations has been passed, that means there are no errors so let's continue!
@@ -131,7 +115,7 @@ class Cart_controller extends CI_Controller {
 
 		$cart = $this->cart->contents();
 		print_r($cart);
-	
+
 	 	echo 'Cart Total Price: ' . $this->cart->total();
 	}
 
@@ -145,6 +129,7 @@ class Cart_controller extends CI_Controller {
 	{
 		$this->cart->destroy();
 	}
+
 
 }
 
